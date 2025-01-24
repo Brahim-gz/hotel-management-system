@@ -1,0 +1,24 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# IDE files (e.g., JetBrains, Visual Studio Code)
+.idea/
+.vscode/
+
+# Environment variables or configuration files
+.env
+
+# SQLite database files (if you use SQLite)
+*.sqlite3
+
+# Virtual environment directories
+venv/
+env/
+
+# System files (macOS, Windows)
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
