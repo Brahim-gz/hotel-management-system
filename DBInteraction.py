@@ -11,16 +11,16 @@ db = sqlite3.connect("hotel_management.db")
 def add_room(room):
     #Add a room to the database.
     cursor = db.execute(
-        "INSERT INTO Room(number, price_per_night, status) VALUES (?, ?, ?)",
-        (room.number, room.price_per_night, room.status),
+        "INSERT INTO Room(number, price_per_night) VALUES (?, ?)",
+        (room.number, room.price_per_night),
     )
     db.commit()
     return cursor.lastrowid
 
 
-def get_available_rooms():
-    #Retrieve all available rooms.
-    cursor = db.execute("SELECT * FROM Room WHERE status = ?", ("Available",))
+def get_rooms():
+    #Retrieve all rooms.
+    cursor = db.execute("SELECT * FROM Room ")
     rooms = []
     for row in cursor:
         rooms.append(row)
@@ -50,7 +50,6 @@ def add_reservation(reservation):
 def book_room(check_in, check_out, room_number, email):
     """
     Make a reservation for a specific room and client using their email.
-    Also updates the room's status to 'Occupied.'
     """
     cursor = db.execute("SELECT * FROM Room WHERE number = ?", (room_number,))
     room_id = cursor.fetchone()[0]
@@ -66,16 +65,7 @@ def book_room(check_in, check_out, room_number, email):
 
     reservation = Reservation(check_in, check_out, room, client)
     add_reservation(reservation)
-
-    db.execute("UPDATE Room SET status = ? WHERE id = ?", ("Occupied", room_id))
     db.commit()
-
-
-def free_room(room_id):
-    #Mark a room as available.
-    db.execute("UPDATE Room SET status = ? WHERE id = ?", ("Available", room_id))
-    db.commit()
-
 
 def search_client(email):
     #Search for a client by their email.
@@ -100,12 +90,30 @@ def search_client(email):
 
 def search_room(number):
     #Search for a room by its number.
-    cursor = db.execute("SELECT * FROM Room WHERE number = ?", (number,))
+    cursor = db.execute(
+        """
+        SELECT 
+            r.id, 
+            r.price_per_night,
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1 
+                    FROM Reservation
+                    WHERE room_id = r.number 
+                    AND CURRENT_DATE BETWEEN check_in_date AND check_out_date
+                ) THEN 'occupied' 
+                ELSE 'available' 
+            END AS status
+        FROM Room r
+        WHERE r.number = ?
+        """,
+        (number,)
+    )
     row = cursor.fetchone()
     if not row:
         return None
 
-    room = Room(number, row[2], row[3])
+    room = Room(number, row[1],row[2])
     room.set_id(row[0])
 
     res_cursor = db.execute(

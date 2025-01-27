@@ -9,7 +9,7 @@ from DBInteraction import *
 # Database connection
 db = sqlite3.connect("hotel_management.db")
 
-db.execute('CREATE TABLE IF NOT EXISTS Room (id INTEGER PRIMARY KEY AUTOINCREMENT, number INTEGER UNIQUE, price_per_night FLOAT, status TEXT)')
+db.execute('CREATE TABLE IF NOT EXISTS Room (id INTEGER PRIMARY KEY AUTOINCREMENT, number INTEGER UNIQUE, price_per_night FLOAT)')
 
 db.execute("CREATE TABLE IF NOT EXISTS Client (id INTEGER PRIMARY KEY AUTOINCREMENT, last_name TEXT, first_name TEXT, email TEXT UNIQUE, phone TEXT, registration_date DATE)")
 
@@ -59,6 +59,23 @@ def validate(entity_type, arg):
             showerror("Error", "Enter valid information.")
             entity = None
         if entity:
+            if entity_type == 'CH' and entity.reservations:
+                if entity.status == 'occupied':
+                    # Find the checkout date for the current reservation
+                    latest_checkout = max(
+                        datetime.strptime(reservation.check_out_date, "%Y-%m-%d").date()
+                        for reservation in entity.reservations
+                        if datetime.strptime(reservation.check_in_date, "%Y-%m-%d").date() <= datetime.now().date() <= datetime.strptime(reservation.check_out_date, "%Y-%m-%d").date()
+                    )
+                    entity.set_status(f'occupied until {latest_checkout}')
+                else:
+                    # Find the next check-in date for the room
+                    next_checkin = [
+                        datetime.strptime(reservation.check_in_date, "%Y-%m-%d").date()
+                        for reservation in entity.reservations
+                        if datetime.strptime(reservation.check_in_date, "%Y-%m-%d").date() > datetime.now().date()
+                    ]
+                    entity.set_status(f'available until {min(next_checkin)}'if next_checkin else "available")
             info_frame = Frame(body, bd=0, pady=20, padx=10, bg=bg_color)
             info_frame.pack(side=TOP, fill=X)
             entity_info = Label(info_frame, text=entity.display(), font=("Comic Sans MS", 12), anchor='w', bg=bg_color)
@@ -70,10 +87,6 @@ def validate(entity_type, arg):
             info_frame.grid_columnconfigure(0, weight=1)
 
             if entity.reservations:
-                if entity_type == 'CH' and entity.get_status() == 'Occupied':
-                    Button(info_frame, text="Free", background="white", font=("Comic Sans MS", 10), width=15,
-                           command=lambda: check_out(entity), pady=7).grid(row=1, column=1, padx=20, sticky='ne')
-
                 table = Treeview(body, columns=('check_in_date', 'check_out_date', 'room_number' if entity_type == 'CL' else 'client'), show='headings')
                 table.heading('check_in_date', text='Arrival Date')
                 table.heading('check_out_date', text='Departure Date')
@@ -91,14 +104,6 @@ def validate(entity_type, arg):
         else:
             msg = Label(body, text=f"No {'client with this email' if entity_type == 'CL' else 'room with this number'} found", font=("Comic Sans MS", 15), bg=bg_color)
             msg.pack()
-
-def check_out(room):
-    if datetime.now().date() < max([date(*[int(i) for i in r.get_check_out_date().split("-")]) for r in room.reservations]):
-        showerror("Error", "The room's reservation has not ended yet.")
-    else:
-        free_room(room.get_id())
-        showinfo('Success', 'Room checked out.')
-        search('Room')
 
 def delete(entity_type, arg):
     if entity_type == 'CL':
@@ -251,24 +256,24 @@ def reserve_page():
     departure_year_entry = Entry(departure_frame, textvariable=StringVar(), width=10)
     departure_year_entry.grid(row=0, column=5, pady=7, sticky='w')
 
-    available_rooms = get_available_rooms()
+    rooms = get_rooms()
 
-    if available_rooms:
-        Label(body, text="Available Rooms", font=("Comic Sans MS", 12), bg="#ffc971").pack()
+    if rooms:
+        Label(body, text="Rooms", font=("Comic Sans MS", 12), bg="#ffc971").pack()
         table = Treeview(body, columns=('number', 'floor', 'price'), show='headings')
         table.heading('number', text='Room Number')
         table.heading('floor', text='Floor')
         table.heading('price', text='Price per Night (in DH)')
         table.pack(fill=X, expand=True, padx=20, pady=10)
 
-        for room in available_rooms:
+        for room in rooms:
             table.insert(parent='', index=0, values=(room[1], room[1] // 10 if room[1] >= 10 else "Ground Floor", room[2]))
     else:
         Label(body, text="All rooms in the hotel are occupied", font=("Comic Sans MS", 12), bg="#ffc971").pack()
 
     reserve_button = Button(form, text="Reserve", background="#25a244", fg="white", font=("Comic Sans MS", 10), width=12, pady=7,
                             command=lambda: reserve_room(table, [arrival_day_entry.get(), arrival_month_entry.get(), arrival_year_entry.get()],
-                                                        [departure_day_entry.get(), departure_month_entry.get(), departure_year_entry.get()], email_entry.get()) if available_rooms else None)
+                                                        [departure_day_entry.get(), departure_month_entry.get(), departure_year_entry.get()], email_entry.get()) if rooms else None)
     reserve_button.grid(row=4, column=2, padx=10, pady=12)
 
 

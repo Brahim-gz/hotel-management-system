@@ -8,11 +8,8 @@ class Room:
     def set_id(self, room_id):
         self.id = room_id
 
-    def get_id(self):
-        return self.id
-
-    def get_status(self):
-        return self.status
+    def set_status(self, status):
+        self.status = status
 
     def display(self):
         floor_info = (
