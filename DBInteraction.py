@@ -57,6 +57,24 @@ def book_room(check_in, check_out, room_number, email):
     cursor = db.execute("SELECT * FROM Client WHERE email = ?", (email,))
     client_id = cursor.fetchone()[0]
 
+    # check if there is a reservation between these dates.
+    cursor = db.execute(
+        """                 
+        SELECT 1 
+        FROM Reservation
+        WHERE room_id = ? 
+        AND ( ? BETWEEN check_in_date AND check_out_date
+        OR ? BETWEEN check_in_date AND check_out_date
+        OR ? IN(check_in_date, check_out_date)
+        OR ? IN(check_in_date, check_out_date)
+        OR ( check_in_date > ? 
+        AND check_out_date < ?))
+        """,
+        (room_id,check_in,check_out,check_in,check_out,check_in,check_out)
+    )
+    if cursor.fetchone():
+        return False
+
     room = Room()
     room.set_id(room_id)
 
@@ -66,6 +84,7 @@ def book_room(check_in, check_out, room_number, email):
     reservation = Reservation(check_in, check_out, room, client)
     add_reservation(reservation)
     db.commit()
+    return True
 
 def search_client(email):
     #Search for a client by their email.

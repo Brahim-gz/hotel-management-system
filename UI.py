@@ -299,10 +299,13 @@ def reserve_room(table, check_in_date, check_out_date, email):
             for room_id in selected_rooms:
                 room_details = table.item(room_id)["values"]
                 try:
-                    book_room(date(int(check_in_date[2]), int(check_in_date[1]), int(check_in_date[0])),
+                    res = book_room(date(int(check_in_date[2]), int(check_in_date[1]), int(check_in_date[0])),
                               date(int(check_out_date[2]), int(check_out_date[1]), int(check_out_date[0])),
                               room_details[0], email)
-                    showinfo('Success', f'The room {room_details[0]} has been reserved successfully.')
+                    if res:
+                        showinfo('Success', f'The room {room_details[0]} has been reserved successfully.')
+                    else:
+                        showerror("Error", "The room is already reserved for the selected dates.")
                 except Exception:
                     showerror("Error", "No client exists with this email.")
             reserve_page()
